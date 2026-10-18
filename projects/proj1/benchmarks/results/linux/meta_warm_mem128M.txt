@@ -1,0 +1,8 @@
+date: 2026-10-18 15:24:46
+platform: Linux-6.17.0-14-generic-x86_64-with-glibc2.39
+cpu_count: 6
+file: /home/filip/Pulpit/studia/ISBD-MIMUW/projects/proj1/benchmarks/files/test.bin
+file_size_bytes: 268435456
+cold: False
+memory_max: 128M
+repeats: 5
