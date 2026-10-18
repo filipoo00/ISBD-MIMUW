@@ -88,6 +88,90 @@ repeats: 5
 
 ![Pipeline (M = 1 MB): odczyt vs obliczenia](plots/pipeline_k_cold.png)
 
+## Tryb: cold_mem128M
+
+```
+date: 2026-10-18 16:03:06
+platform: Linux-6.17.0-14-generic-x86_64-with-glibc2.39
+cpu_count: 6
+file: /home/filip/Pulpit/studia/ISBD-MIMUW/projects/proj1/benchmarks/files/test.bin
+file_size_bytes: 268435456
+cold: True
+memory_max: 128M
+repeats: 5
+```
+
+### Latency
+
+**Czas całego programu [s]**
+
+| M | baseline | 1 wątk. | 2 wątk. | 4 wątk. | 8 wątk. | 16 wątk. |
+|---:|---:|---:|---:|---:|---:|---:|
+| 512 B | 23.356 | 23.047 | 12.684 | 7.811 | 5.856 | 9.281 |
+| 4 KB | 6.940 | 6.553 | 3.767 | 2.518 | 1.908 | 1.636 |
+| 16 KB | 2.962 | 2.560 | 1.480 | 0.981 | 0.772 | 0.728 |
+| 64 KB | 1.657 | 1.086 | 0.654 | 0.463 | 0.415 | 0.416 |
+
+**Średni czas jednego pread [µs]**
+
+| M | baseline | 1 wątk. | 2 wątk. | 4 wątk. | 8 wątk. | 16 wątk. |
+|---:|---:|---:|---:|---:|---:|---:|
+| 512 B | 42.24 | 42.21 | 46.59 | 57.56 | 87.26 | 280.93 |
+| 4 KB | 97.68 | 97.82 | 112.46 | 151.27 | 230.50 | 396.82 |
+| 16 KB | 153.20 | 152.72 | 177.37 | 235.90 | 373.61 | 706.74 |
+| 64 KB | 275.90 | 255.52 | 312.34 | 442.96 | 734.93 | 1235.15 |
+
+![Latency: czas całego programu](plots/latency_total_cold_mem128M.png)
+
+![Latency: średni czas jednego odczytu](plots/latency_read_cold_mem128M.png)
+
+### Throughput
+
+| M | read: czas [s] | mmap: czas [s] | read: sys [s] | mmap: sys [s] | read: same odczyty [s] |
+|---:|---:|---:|---:|---:|---:|
+| 512 B | 1.910 | 0.521 | 0.003 | 0.009 | 0.808 |
+| 1 KB | 1.200 | 0.493 | 0.007 | 0.007 | 0.437 |
+| 4 KB | 0.657 | 0.479 | 0.011 | 0.008 | 0.147 |
+| 16 KB | 0.525 | 0.473 | 0.006 | 0.012 | 0.085 |
+| 64 KB | 0.492 | 0.468 | 0.012 | 0.006 | 0.060 |
+| 256 KB | 0.532 | 0.466 | 0.009 | 0.010 | 0.111 |
+| 1 MB | 0.628 | 0.467 | 0.007 | 0.008 | 0.211 |
+
+![Throughput: czas całego programu](plots/throughput_total_cold_mem128M.png)
+
+![Throughput: czas systemowy (sys)](plots/throughput_sys_cold_mem128M.png)
+
+### Pipeline: siatka M × K
+
+**Czas programu [s]: baseline → pipeline**
+
+| K | M = 64 KB | M = 256 KB | M = 1 MB | M = 4 MB |
+|---:|---:|---:|---:|---:|
+| 1 | 0.502 → 0.429 | 0.528 → 0.420 | 0.638 → 0.417 | 0.642 → 0.419 |
+| 10 | 0.504 → 0.434 | 0.528 → 0.422 | 0.625 → 0.417 | 0.642 → 0.420 |
+| 100 | 0.539 → 0.474 | 0.537 → 0.431 | 0.635 → 0.420 | 0.650 → 0.420 |
+| 1k | 0.943 → 0.875 | 0.639 → 0.530 | 0.668 → 0.444 | 0.652 → 0.427 |
+| 10k | 4.892 → 4.818 | 1.628 → 1.515 | 0.910 → 0.691 | 0.715 → 0.488 |
+
+![Pipeline: czas w funkcji M i K](plots/pipeline_cold_mem128M.png)
+
+### Pipeline: M = 1 MB, przemiatanie K
+
+| K | baseline: czas [s] | pipeline: czas [s] | pipeline: read_s | pipeline: compute_s |
+|---:|---:|---:|---:|---:|
+| 1 | 0.640 | 0.416 | 0.210 | 0.413 |
+| 10 | 0.631 | 0.417 | 0.213 | 0.414 |
+| 100 | 0.642 | 0.419 | 0.210 | 0.416 |
+| 1k | 0.659 | 0.444 | 0.213 | 0.441 |
+| 2k | 0.688 | 0.472 | 0.214 | 0.468 |
+| 5k | 0.773 | 0.554 | 0.216 | 0.550 |
+| 10k | 0.909 | 0.691 | 0.221 | 0.687 |
+| 20k | 1.183 | 0.964 | 0.246 | 0.961 |
+| 50k | 2.016 | 1.787 | 0.243 | 1.783 |
+| 100k | 3.604 | 3.154 | 0.385 | 3.149 |
+
+![Pipeline (M = 1 MB): odczyt vs obliczenia](plots/pipeline_k_cold_mem128M.png)
+
 ## Tryb: warm
 
 ```
