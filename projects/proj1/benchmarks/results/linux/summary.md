@@ -346,4 +346,4 @@ repeats: 5
 
 ## Podsumowanie
 
-_Tu wpisz własne wnioski._
+Patrz [README.md](../../../README.md).
