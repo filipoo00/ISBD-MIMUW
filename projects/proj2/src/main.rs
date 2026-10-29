@@ -1,15 +1,13 @@
 mod codec;
-mod batch;
-mod file_format;
-mod writer;
-mod reader;
+mod table;
 mod constants;
+mod file_format;
 
-use std::eprintln;
+use std::{eprintln, println};
 use std::path::Path;
-use crate::writer::write_file;
-use crate::reader::read_file;
-use crate::batch::Column;
+use crate::file_format::writer::write_file;
+use crate::file_format::reader::read_file;
+use crate::table::{Column, Table};
 
 
 fn main() {
@@ -18,10 +16,13 @@ fn main() {
     let column2 = Column::Int64(vec![1, 2]);
     let column3 = Column::Varchar(vec!["xd".to_string(), "lol".to_string()]);
     let column4 = Column::Boolean(vec![true, false]);
-    let columns = vec![column1, column2, column3, column4]; 
-    if let Err(error) = write_file(path, &columns) {
+    let table = Table {
+        columns: vec![column1, column2, column3, column4],
+    };
+    if let Err(error) = write_file(path, &table) {
         eprintln!("Cannot write table: {error}");
         return;
     }
-    read_file(path).unwrap();
-}
+    let table = read_file(path).unwrap();
+    println!("{:?}", table.columns);
+} 
