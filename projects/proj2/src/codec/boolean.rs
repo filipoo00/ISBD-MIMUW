@@ -20,12 +20,12 @@ pub fn encode_boolean_column(values: &[bool]) -> Vec<u8> {
     bytes
 }
 
-pub fn decode_boolean_column(data: &[u8], number_of_values: u64) -> Vec<bool> {
+pub fn decode_boolean_column(data: &[u8], number_of_values: u16) -> Vec<bool> {
     let mut values: Vec<bool> = Vec::new();
     let mut remaining = number_of_values;
 
     for byte in data {
-        let how_many_values = cmp::min(remaining, BYTE_LEN as u64);
+        let how_many_values = cmp::min(remaining, BYTE_LEN as u16);
         for i in 0..how_many_values {
             let bit = byte & (1 << i);
             if bit != 0 {
@@ -53,7 +53,7 @@ mod tests {
     fn boolean_column_roundtrip() {
         let original = vec![false, true, true];
         let encoded = encode_boolean_column(&original);
-        let decoded = decode_boolean_column(&encoded, original.len() as u64);
+        let decoded = decode_boolean_column(&encoded, original.len() as u16);
 
         assert_eq!(decoded, original)
     }
