@@ -1,18 +1,32 @@
+// File format - version 3
+// FileMetadata is stored at the end of the file (footer).
+// This allows the writer to write row groups batch by batch
+// without knowing the number of row groups.
+//
+// File structure:
+//
+// For each row group:
+//  RowGroupMetadata
+//      number_of_rows:         number of rows in this group
+//
+//  For each column:
+//      ColumnMetadata 
+//          column_type:        int64 / varchar / boolean
+//          original_size:      size in bytes of the original column data
+//          payload_size:       size in bytes of the encoded column data
+//
+// FileMetdata (footer)
+//  number_of_cols:             number of columns in the file
+//  number_of_row_groups:       number of row groups in the file
+//
+// The reader first reads the FileMetada (last 8 bytes).
+// In this case the reader knows how many columns and row groups there are in the file.
+
+
 use std::fs::File;
 use std::io::{self, Read, Write};
 
-// rozkminka
-// FileMetadata -> at the top of the file:
-//  number_of_cols -> will not change, so we can have this info at the top
-//  number_of_groups_row -> how many groups we will have, to be able to iterate through all the groups
-
-// RowGroupMetadata -> after the FileMetadata and before every RowGroup
-//  number_of_rows -> number_of_rows in this group
-
-// ColumnMetadata -> each column metadata in each RowGroup
-//  column_type -> type of the column
-//  original_size -> size in bytes of the original array
-//  payload_size -> size in bytes of the written array
+pub const FILE_METADATA_SIZE: usize = 8;
 
 
 pub struct FileMetadata {
