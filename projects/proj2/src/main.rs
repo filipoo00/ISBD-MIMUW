@@ -2,6 +2,7 @@ mod codec;
 mod table;
 mod constants;
 mod file_format;
+mod metrics;
 
 use std::path::Path;
 use std::println;
@@ -9,6 +10,27 @@ use std::println;
 use crate::file_format::writer::Writer;
 use crate::file_format::reader::Reader;
 use crate::table::{Batch, Column};
+use crate::metrics::{MetricResult, ColumnsMetric};
+
+
+fn print_results(results: &[MetricResult]) {
+    println!("\nMetrics");
+
+    for (i, result) in results.iter().enumerate() {
+        match result {
+            MetricResult::Int64 { mean } => {
+                println!("Column {i}: mean = {mean:?}");
+            }
+            MetricResult::Boolean { entropy } => {
+                println!("Column {i}: entropy = {entropy:?}");
+            }
+            MetricResult::Varchar { ascii_count } => {
+                println!("Column {i}: ascii_count = {ascii_count}");
+            }
+        }
+    }
+}
+
 
 fn main() {
     let path = Path::new("xd.bin");
@@ -37,15 +59,27 @@ fn main() {
 
     println!("Written 2 batches.");
 
-    // Read batches
+    // Read batches and calculate metrics
     let mut reader = Reader::open(path).unwrap();
 
+    let mut metrics: Option<ColumnsMetric> = None;
     let mut number_of_batch = 0;
+
     while let Some(batch) = reader.next_batch().unwrap() {
         println!("Batch {}", number_of_batch);
         for (i, column) in batch.columns().iter().enumerate() {
             println!("Column {}: {:?}", i, column);
         }
+        if metrics.is_none() {
+            metrics = Some(ColumnsMetric::new(&batch));
+        }
+        metrics.as_mut().unwrap().update(&batch).unwrap();
+
         number_of_batch += 1;
+    }
+
+    if let Some(metrics) = metrics {
+        let results = metrics.calculate();
+        print_results(&results);
     }
 }
