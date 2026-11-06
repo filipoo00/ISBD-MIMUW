@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::{self, Write};
 use std::mem;
 
-use crate::file_format::metadata::{ColumnMetadata, FileMetadata, RowGroupMetadata};
+use crate::file_format::metadata::{ColumnMetadata, FileMetadata, BatchMetadata};
 use crate::table::{Batch, Column};
 use crate::codec::int64::encode_int64;
 use crate::codec::varchar::encode_varchar_column;
@@ -14,7 +14,7 @@ use crate::constants::{TYPE_INT64, TYPE_VARCHAR, TYPE_BOOLEAN};
 pub struct Writer {
     file: File,
     number_of_cols: u32,
-    number_of_row_groups: u32,
+    number_of_batches: u32,
 }
 
 impl Writer {
@@ -57,7 +57,7 @@ impl Writer {
         Ok(Self { 
             file: file,
             number_of_cols: number_of_cols,
-            number_of_row_groups: 0,
+            number_of_batches: 0,
         })
     }
 
@@ -69,10 +69,10 @@ impl Writer {
                     "Batch has a different number of columns.",
             ));
         }
-        let row_group_metadata = RowGroupMetadata {
+        let batch_metadata = BatchMetadata {
             number_of_rows: batch.number_of_rows() as u16,
         };
-        row_group_metadata.write_to(&mut self.file)?;
+        batch_metadata.write_to(&mut self.file)?;
 
 
         let columns = batch.columns();
@@ -80,7 +80,7 @@ impl Writer {
             self.write_column(column)?;
         }
 
-        self.number_of_row_groups += 1;
+        self.number_of_batches += 1;
 
         Ok(())
     }
@@ -89,7 +89,7 @@ impl Writer {
     pub fn finish(&mut self) -> io::Result<()> {
         let file_metadata = FileMetadata {
             number_of_cols: self.number_of_cols,
-            number_of_row_groups: self.number_of_row_groups,
+            number_of_batches: self.number_of_batches,
         };
 
         file_metadata.write_to(&mut self.file)?;

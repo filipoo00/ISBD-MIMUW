@@ -4,7 +4,7 @@ use std::fs::File;
 
 
 use crate::file_format::metadata::{
-    ColumnMetadata, FileMetadata, RowGroupMetadata, FILE_METADATA_SIZE
+    ColumnMetadata, FileMetadata, BatchMetadata, FILE_METADATA_SIZE
 };
 use crate::table::{Batch, Column};
 use crate::codec::int64::decode_int64;
@@ -15,7 +15,7 @@ use crate::constants::{TYPE_INT64, TYPE_VARCHAR, TYPE_BOOLEAN};
 pub struct Reader {
     file: File,
     file_metadata: FileMetadata,
-    current_row_group: usize,
+    current_batch: usize,
 }
 
 
@@ -77,16 +77,16 @@ impl Reader {
         Ok(Self {
             file: file, 
             file_metadata: file_metadata,
-            current_row_group: 0,
+            current_batch: 0,
         })
     }
 
     pub fn next_batch(&mut self) -> io::Result<Option<Batch>> {
-        if self.current_row_group >= self.file_metadata.number_of_row_groups as usize{
+        if self.current_batch >= self.file_metadata.number_of_batches as usize{
             return Ok(None);
         }
-        let row_group_metadata = RowGroupMetadata::read_from(&mut self.file)?;
-        let number_of_rows = row_group_metadata.number_of_rows;
+        let batch_metadata = BatchMetadata::read_from(&mut self.file)?;
+        let number_of_rows = batch_metadata.number_of_rows;
         let number_of_cols = self.file_metadata.number_of_cols;
 
         let mut columns = Vec::new();
@@ -95,7 +95,7 @@ impl Reader {
             columns.push(column);
         }
 
-        self.current_row_group += 1;
+        self.current_batch += 1;
 
         let batch = Batch::new(columns)?;
         Ok(Some(batch))

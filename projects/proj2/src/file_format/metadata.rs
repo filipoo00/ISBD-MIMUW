@@ -1,13 +1,13 @@
 // File format - version 3
 // FileMetadata is stored at the end of the file (footer).
-// This allows the writer to write row groups batch by batch
-// without knowing the number of row groups.
+// This allows the writer to write the file batch by batch
+// without knowing the number of batches.
 //
 // File structure:
 //
-// For each row group:
-//  RowGroupMetadata
-//      number_of_rows:         number of rows in this group
+// For each batch:
+//  BatchMetadata
+//      number_of_rows:         number of rows in this batch
 //
 //  For each column:
 //      ColumnMetadata 
@@ -15,12 +15,12 @@
 //          original_size:      size in bytes of the original column data
 //          payload_size:       size in bytes of the encoded column data
 //
-// FileMetdata (footer)
+// FileMetadata (footer)
 //  number_of_cols:             number of columns in the file
-//  number_of_row_groups:       number of row groups in the file
+//  number_of_batches:          number of batches in the file
 //
-// The reader first reads the FileMetada (last 8 bytes).
-// In this case the reader knows how many columns and row groups there are in the file.
+// The reader first reads the FileMetadata (last 8 bytes).
+// In this case the reader knows how many columns and batches there are in the file.
 
 
 use std::fs::File;
@@ -31,32 +31,32 @@ pub const FILE_METADATA_SIZE: usize = 8;
 
 pub struct FileMetadata {
     pub number_of_cols: u32,
-    pub number_of_row_groups: u32,
+    pub number_of_batches: u32,
 }
 
 impl FileMetadata {
     pub fn write_to(&self, file: &mut File) -> io::Result<()> {
         file.write_all(&self.number_of_cols.to_le_bytes())?;
-        file.write_all(&self.number_of_row_groups.to_le_bytes())?;
+        file.write_all(&self.number_of_batches.to_le_bytes())?;
         Ok(())
     }
 
     pub fn read_from(file: &mut File) -> io::Result<Self> {
         let mut cols_buffer = [0u8; 4];
-        let mut row_groups_buffer =  [0u8; 4];
+        let mut batches_buffer =  [0u8; 4];
         file.read_exact(&mut cols_buffer)?;
-        file.read_exact(&mut row_groups_buffer)?;
+        file.read_exact(&mut batches_buffer)?;
         let number_of_cols = u32::from_le_bytes(cols_buffer);
-        let number_of_row_groups = u32::from_le_bytes(row_groups_buffer);
-        Ok( Self { number_of_cols, number_of_row_groups})
+        let number_of_batches = u32::from_le_bytes(batches_buffer);
+        Ok( Self { number_of_cols, number_of_batches})
     }
 }
 
-pub struct RowGroupMetadata {
+pub struct BatchMetadata {
     pub number_of_rows: u16
 }
 
-impl RowGroupMetadata {
+impl BatchMetadata {
     pub fn write_to(&self, file: &mut File) -> io::Result<()> {
         file.write_all(&self.number_of_rows.to_le_bytes())?;
         Ok(())
