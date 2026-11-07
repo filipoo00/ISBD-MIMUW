@@ -7,7 +7,7 @@ use crate::file_format::metadata::{
     ColumnMetadata, FileMetadata, BatchMetadata, FILE_METADATA_SIZE
 };
 use crate::table::{Batch, Column};
-use crate::codec::int64::decode_int64;
+use crate::codec::int64::decode_int64_column;
 use crate::codec::varchar::decode_varchar_column;
 use crate::codec::boolean::decode_boolean_column;
 use crate::constants::{TYPE_INT64, TYPE_VARCHAR, TYPE_BOOLEAN};
@@ -37,17 +37,17 @@ impl Reader {
         let values = match column_type {
             TYPE_INT64 => {
                 Column::Int64(
-                    decode_int64(&buffer)
+                    decode_int64_column(&buffer, usize::from(number_of_rows))?
                 )
             },
             TYPE_VARCHAR => {
                 Column::Varchar(
-                    decode_varchar_column(&buffer)
+                    decode_varchar_column(&buffer, usize::from(number_of_rows))?
                 )
             },
             TYPE_BOOLEAN => {
                 Column::Boolean(
-                    decode_boolean_column(&buffer, number_of_rows)
+                    decode_boolean_column(&buffer, usize::from(number_of_rows))?
                 )
             }
             _ => {

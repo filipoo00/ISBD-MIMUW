@@ -4,7 +4,7 @@ use std::io::{self, Write};
 
 use crate::file_format::metadata::{ColumnMetadata, FileMetadata, BatchMetadata};
 use crate::table::{Batch, Column};
-use crate::codec::int64::encode_int64;
+use crate::codec::int64::encode_int64_column;
 use crate::codec::varchar::encode_varchar_column;
 use crate::codec::boolean::encode_boolean_column;
 use crate::constants::{TYPE_INT64, TYPE_VARCHAR, TYPE_BOOLEAN};
@@ -20,7 +20,7 @@ impl Writer {
     fn write_column(&mut self, column: &Column) -> io::Result<()> {
         let (column_type, encoded) = match &column {
             Column::Int64(values) => {
-                let encoded = encode_int64(&values);
+                let encoded = encode_int64_column(&values);
                 (TYPE_INT64, encoded)
             },
             Column::Varchar(varchar_column) => {

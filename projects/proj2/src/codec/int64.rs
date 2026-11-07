@@ -1,72 +1,72 @@
+use std::io;
 
 fn delta_encode(values: &[i64]) -> Vec<i64> {
     if values.is_empty() {
         return Vec::new()
     }
 
-    let mut delta_values = Vec::with_capacity(values.len());
-    delta_values.push(values[0]);
+    let mut deltas = Vec::with_capacity(values.len());
+    deltas.push(values[0]);
     for i in 1..values.len() {
-        let delta = values[i] - values[i-1];
-        delta_values.push(delta)
+        let delta = values[i].wrapping_sub(values[i-1]);
+        deltas.push(delta)
     }
 
-    delta_values
+    deltas
 }
 
-fn delta_decode(delta_values: &[i64]) -> Vec<i64> {
-    if delta_values.is_empty() {
+fn delta_decode(deltas: &[i64]) -> Vec<i64> {
+    if deltas.is_empty() {
         return Vec::new()
     }
 
-    let mut values = Vec::with_capacity(delta_values.len());
-    values.push(delta_values[0]);
+    let mut values = Vec::with_capacity(deltas.len());
+    values.push(deltas[0]);
 
-    for i in 1..delta_values.len() {
-        let restored_value = delta_values[i] + values[i-1];
+    for i in 1..deltas.len() {
+        let restored_value = deltas[i].wrapping_add(values[i-1]);
         values.push(restored_value)
     }
 
     values
 }
 
-fn zigzag_encode_val(value: i64) -> u64 {
+fn zigzag_encode_value(value: i64) -> u64 {
     let mapped_value = ((value as u64) << 1) ^ ((value >> 63) as u64);
     mapped_value
 }
 
-fn zigzag_encode_vec(delta_values: &[i64]) -> Vec<u64> {
-    let mut zigzag_enc = Vec::with_capacity(delta_values.len());
+fn zigzag_encode(deltas: &[i64]) -> Vec<u64> {
+    let mut zigzags = Vec::with_capacity(deltas.len());
 
-    for &value in delta_values {
-        zigzag_enc.push(zigzag_encode_val(value))
+    for &delta in deltas {
+        zigzags.push(zigzag_encode_value(delta))
     }
 
-    zigzag_enc
+    zigzags
 }
 
-fn zigzag_decode(zigzac_encode_val: u64) -> i64 {
-    let decoded_val = zigzac_encode_val >> 1;
+fn zigzag_decode_value(zigzag: u64) -> i64 {
+    let decoded_value = zigzag >> 1;
 
-    if zigzac_encode_val & 1 == 0 {
-        decoded_val as i64
+    if zigzag & 1 == 0 {
+        decoded_value as i64
     } else {
-        (!decoded_val) as i64
+        (!decoded_value) as i64
     }
 }
 
-fn zigzag_decode_vec(zigzac_encode_vec: &[u64]) -> Vec<i64> {
-    let mut delta_values = Vec::with_capacity(zigzac_encode_vec.len());
+fn zigzag_decode(zigzags: &[u64]) -> Vec<i64> {
+    let mut deltas = Vec::with_capacity(zigzags.len());
 
-    for &encoded_val in zigzac_encode_vec {
-        let decoded_val = zigzag_decode(encoded_val);
-        delta_values.push(decoded_val)
+    for &zigzag in zigzags {
+        deltas.push(zigzag_decode_value(zigzag))
     }
 
-    delta_values
+    deltas
 }
 
-fn vle_encode_val(mut value: u64) -> Vec<u8> {
+fn vle_encode_value(mut value: u64) -> Vec<u8> {
     let mut bytes = Vec::new();
     
     loop {
@@ -87,23 +87,30 @@ fn vle_encode_val(mut value: u64) -> Vec<u8> {
     bytes
 }
 
-fn vle_encode_vec(values: &[u64]) -> Vec<u8> {
+fn vle_encode(zigzags: &[u64]) -> Vec<u8> {
     let mut bytes = Vec::new();
 
-    for &value in values {
-        bytes.extend(vle_encode_val(value))
+    for &value in zigzags {
+        bytes.extend(vle_encode_value(value))
     }
 
     bytes
 }
 
-fn vle_decode_vec(encoded: &[u8]) -> Vec<u64> {
+fn vle_decode(encoded: &[u8]) -> io::Result<Vec<u64>> {
     let mut decoded = Vec::new();
 
     let mut value = 0;
     let mut shift = 0;
 
     for byte in encoded {
+        if shift >= u64::BITS {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "VLE value is too long.",
+            ))
+        }
+
         let restored_bits = (byte & 0b0111_1111) as u64;
         let continuation_bit = byte & 0b1000_0000;
 
@@ -118,25 +125,47 @@ fn vle_decode_vec(encoded: &[u8]) -> Vec<u64> {
         }
     }
 
-    decoded
+    if shift != 0 {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "VLE value is truncated.",
+        ))
+    }
+
+    Ok(decoded)
 }
 
-pub fn encode_int64(values: &[i64]) -> Vec<u8> {
+pub fn encode_int64_column(values: &[i64]) -> Vec<u8> {
     let deltas = delta_encode(values);
-    let zigzags = zigzag_encode_vec(&deltas);
-    vle_encode_vec(&zigzags)
+    let zigzags = zigzag_encode(&deltas);
+    vle_encode(&zigzags)
 }
 
-pub fn decode_int64(bytes: &[u8]) -> Vec<i64> {
-    let zigzags = vle_decode_vec(bytes);
-    let deltas = zigzag_decode_vec(&zigzags);
-    delta_decode(&deltas)
+pub fn decode_int64_column(encoded: &[u8], number_of_rows: usize) -> io::Result<Vec<i64>> {
+    let zigzags = vle_decode(encoded)?;
+
+    if zigzags.len() != number_of_rows {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "Int64 column has wrong number of values.",
+        ))
+    }
+
+    let deltas = zigzag_decode(&zigzags);
+    Ok(delta_decode(&deltas))
 }
 
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn roundtrip(values: &[i64]) {
+        let encoded = encode_int64_column(values);
+        let decoded = decode_int64_column(&encoded, values.len()).unwrap();
+
+        assert_eq!(decoded, values);
+    }
 
     #[test]
     fn delta_roundtrip() {
@@ -153,7 +182,7 @@ mod tests {
         let values = vec![0, 1, -1, 2, -2, i64::MAX, i64::MIN];
 
         for value in values {
-            assert_eq!(zigzag_decode(zigzag_encode_val(value)), value);
+            assert_eq!(zigzag_decode_value(zigzag_encode_value(value)), value);
         }
     }
 
@@ -161,29 +190,40 @@ mod tests {
     fn vle_roundtrip() {
         let values = vec![0, 1, 127, 128, 300, u64::MAX];
 
-        let encoded = vle_encode_vec(&values);
-        let decoded = vle_decode_vec(&encoded);
+        let encoded = vle_encode(&values);
+        let decoded = vle_decode(&encoded).unwrap();
 
         assert_eq!(decoded, values);
     }
 
     #[test]
     fn int64_roundtrip() {
-        let values = vec![1, -2, 100, 5000];
+        roundtrip(&[1, -2, 100, 5000]);
+    }
 
-        let encoded = encode_int64(&values);
-        let decoded = decode_int64(&encoded);
-
-        assert_eq!(decoded, values);
+    #[test]
+    fn max_values_roundtrip() {
+        roundtrip(&[i64::MIN, i64::MAX, 0, -1, i64::MAX, i64::MIN]);
     }
 
     #[test]
     fn empty_input_roundtrip() {
-        let values: Vec<i64> = vec![];
+        roundtrip(&[]);
+    }
 
-        let encoded = encode_int64(&values);
-        let decoded = decode_int64(&encoded);
+    #[test]
+    fn sequences_roundtrip() {
+        let increasing: Vec<i64> = (0..1024).collect();
+        let decreasing: Vec<i64> = (0..1024).rev().collect();
 
-        assert_eq!(decoded, values);
+        roundtrip(&increasing);
+        roundtrip(&decreasing);
+    }
+
+    #[test]
+    fn wrong_number_of_rows_is_error() {
+        let encoded = encode_int64_column(&[1, 2, 3]);
+
+        assert!(decode_int64_column(&encoded, 4).is_err());
     }
 }

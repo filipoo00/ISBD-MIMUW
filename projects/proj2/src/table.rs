@@ -13,8 +13,27 @@ impl VarcharColumn {
         VarcharColumn { data: String::new(), offsets: vec![0] }
     }
 
-    pub fn from_parts(data: String, offsets: Vec<u32>) -> Self {
-        Self { data, offsets }
+    pub fn from_parts(data: String, offsets: Vec<u32>) -> io::Result<Self> {
+        if offsets.first() != Some(&0) {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "Varchar offsets must start with 0.",
+            ))
+        }
+        if offsets.windows(2).any(|w| w[0] > w[1]) {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "Varchar offsets must not decrease.",
+            ))
+        }
+        if *offsets.last().unwrap() as usize != data.len() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "Last varchar offset must equal data length.",
+            ))
+        }
+
+        Ok(Self { data, offsets })
     }
 
     pub fn push(&mut self, value: &str) {
