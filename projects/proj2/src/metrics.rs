@@ -67,10 +67,8 @@ impl ColumnsMetric {
                     *count += values.len() as u64;
                 },
                 (Metric::Varchar { ascii_count }, Column::Varchar(values)) => {
-                    for value in values {
-                        let count = value.bytes().filter(|b| b.is_ascii()).count();
-                        *ascii_count += count as u64;
-                    }
+                    let count = values.data().bytes().filter(|b| b.is_ascii()).count();
+                    *ascii_count += count as u64;
                 },
                 (Metric::Boolean { true_count, false_count }, Column::Boolean(values)) => {
                     for &value in values {

@@ -1,7 +1,6 @@
 use std::path::Path;
 use std::fs::File;
 use std::io::{self, Write};
-use std::mem;
 
 use crate::file_format::metadata::{ColumnMetadata, FileMetadata, BatchMetadata};
 use crate::table::{Batch, Column};
@@ -19,26 +18,23 @@ pub struct Writer {
 
 impl Writer {
     fn write_column(&mut self, column: &Column) -> io::Result<()> {
-        let (column_type, encoded, original_size) = match &column {
+        let (column_type, encoded) = match &column {
             Column::Int64(values) => {
                 let encoded = encode_int64(&values);
-                let original_size = (column.len() * mem::size_of::<i64>()) as u64;
-                (TYPE_INT64, encoded, original_size)
+                (TYPE_INT64, encoded)
             },
-            Column::Varchar(values) => {
-                let (encdoded, original_size) = encode_varchar_column(&values);
-                (TYPE_VARCHAR, encdoded, original_size)
+            Column::Varchar(varchar_column) => {
+                let encoded = encode_varchar_column(varchar_column);
+                (TYPE_VARCHAR, encoded)
             }
             Column::Boolean(values) => {
                 let encoded = encode_boolean_column(&values);
-                let original_size = (column.len() * mem::size_of::<bool>()) as u64;
-                (TYPE_BOOLEAN, encoded, original_size)
+                (TYPE_BOOLEAN, encoded)
             }
         };
 
         let metdata = ColumnMetadata {
             column_type: column_type,
-            original_size: original_size,
             payload_size: encoded.len() as u64,
         };
 

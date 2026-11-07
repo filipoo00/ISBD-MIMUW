@@ -2,10 +2,46 @@ use std::io;
 
 use crate::constants::BATCH_SIZE;
 
+#[derive(Debug, PartialEq, Clone)]
+pub struct VarcharColumn {
+    data: String,
+    offsets: Vec<u32>,
+}
+
+impl VarcharColumn {
+    pub fn new() -> VarcharColumn {
+        VarcharColumn { data: String::new(), offsets: vec![0] }
+    }
+
+    pub fn from_parts(data: String, offsets: Vec<u32>) -> Self {
+        Self { data, offsets }
+    }
+
+    pub fn push(&mut self, value: &str) {
+        self.data.push_str(value);
+        let end = u32::try_from(self.data.len()).expect("Data exceeds 4GB");
+        self.offsets.push(end);
+    }
+
+    pub fn len(&self) -> usize {
+        return self.offsets.len() - 1
+    }
+
+    pub fn offsets(&self) -> &[u32] {
+        return &self.offsets
+    }
+    
+    pub fn data(&self) -> &str {
+        return &self.data
+    }
+}
+
+
+
 #[derive(Debug)]
 pub enum Column {
     Int64(Vec<i64>),
-    Varchar(Vec<String>),
+    Varchar(VarcharColumn),
     Boolean(Vec<bool>),
 }
 
@@ -14,7 +50,7 @@ impl Column {
     pub fn len(&self) -> usize {
         match self {
             Column::Int64(values) => values.len(),
-            Column::Varchar(values) => values.len(),
+            Column::Varchar(varchar_columns) => varchar_columns.len(),
             Column::Boolean(values) => values.len(),
         }
     }

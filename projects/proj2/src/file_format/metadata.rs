@@ -1,4 +1,4 @@
-// File format - version 3
+// File format - version 4
 // FileMetadata is stored at the end of the file (footer).
 // This allows the writer to write the file batch by batch
 // without knowing the number of batches.
@@ -12,7 +12,6 @@
 //  For each column:
 //      ColumnMetadata 
 //          column_type:        int64 / varchar / boolean
-//          original_size:      size in bytes of the original column data
 //          payload_size:       size in bytes of the encoded column data
 //
 // FileMetadata (footer)
@@ -72,7 +71,6 @@ impl BatchMetadata {
 
 pub struct ColumnMetadata {
     pub column_type: u8,
-    pub original_size: u64,
     pub payload_size: u64,
 }
 
@@ -80,22 +78,18 @@ pub struct ColumnMetadata {
 impl ColumnMetadata {
     pub fn write_to(&self, file: &mut File) -> io::Result<()> {
         file.write_all(&self.column_type.to_le_bytes())?;
-        file.write_all(&self.original_size.to_le_bytes())?;
         file.write_all(&self.payload_size.to_le_bytes())?;
         Ok(())
     }
 
     pub fn read_from(file: &mut File) -> io::Result<Self> {
         let mut column_type_buffer = [0u8; 1];
-        let mut original_buffer = [0u8; 8];
         let mut payload_buffer = [0u8; 8];
         file.read_exact(&mut column_type_buffer)?;
-        file.read_exact(&mut original_buffer)?;
         file.read_exact(&mut payload_buffer)?;
 
         let column_type = u8::from_le_bytes(column_type_buffer);
-        let original_size = u64::from_le_bytes(original_buffer);
         let payload_size = u64::from_le_bytes(payload_buffer);
-        Ok( Self { column_type, original_size, payload_size })
+        Ok( Self { column_type, payload_size })
     }
 }

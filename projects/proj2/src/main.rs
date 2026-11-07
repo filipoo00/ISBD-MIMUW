@@ -9,7 +9,7 @@ use std::println;
 
 use crate::file_format::writer::Writer;
 use crate::file_format::reader::Reader;
-use crate::table::{Batch, Column};
+use crate::table::{Batch, Column, VarcharColumn};
 use crate::metrics::{MetricResult, ColumnsMetric};
 
 
@@ -35,17 +35,25 @@ fn print_results(results: &[MetricResult]) {
 fn main() {
     let path = Path::new("xd.bin");
 
+    let mut varchar1 = VarcharColumn::new();
+    varchar1.push("1");
+    varchar1.push("2");
+
     let batch1 = Batch::new(vec![
         Column::Int64(vec![1, 2]),
         Column::Int64(vec![10, 20]),
-        Column::Varchar(vec!["1".to_string(), "2".to_string()]),
+        Column::Varchar(varchar1),
         Column::Boolean(vec![true, false]),
     ]).unwrap();
+
+    let mut varchar2 = VarcharColumn::new();
+    varchar2.push("3");
+    varchar2.push("4");
 
     let batch2 = Batch::new(vec![
         Column::Int64(vec![3, 4]),
         Column::Int64(vec![30, 40]),
-        Column::Varchar(vec!["3".to_string(), "4".to_string()]),
+        Column::Varchar(varchar2),
         Column::Boolean(vec![false, true]),
     ]).unwrap();
 

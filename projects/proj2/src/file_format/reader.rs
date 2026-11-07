@@ -28,7 +28,6 @@ impl Reader {
             ColumnMetadata::read_from(&mut self.file)?;
 
         let column_type = column_metadata.column_type;
-        let original_size = column_metadata.original_size;
         let payload_size = column_metadata.payload_size as usize;
 
         let mut buffer = vec![0u8; payload_size];
@@ -43,7 +42,7 @@ impl Reader {
             },
             TYPE_VARCHAR => {
                 Column::Varchar(
-                    decode_varchar_column(&buffer, original_size)   
+                    decode_varchar_column(&buffer)
                 )
             },
             TYPE_BOOLEAN => {
