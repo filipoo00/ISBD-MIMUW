@@ -5,3 +5,6 @@ edition = "2024"
 
 [dependencies]
 lz4_flex = "0.14.0"
+
+[dev-dependencies]
+tempfile = "3.27.0"

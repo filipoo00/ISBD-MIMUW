@@ -10,6 +10,7 @@ enum Metric {
 }
 
 
+#[derive(Debug, PartialEq)]
 pub enum MetricResult {
     Int64 {
         mean: Option<f64>,
@@ -139,4 +140,66 @@ impl ColumnsMetric {
 
         columns_metric_result
     }    
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::table::VarcharColumn;
+
+    const SCHEMA: [ColumnType; 4] = [
+        ColumnType::Int64,
+        ColumnType::Boolean,
+        ColumnType::Varchar,
+        ColumnType::Varchar,
+    ];
+
+    #[test]
+    fn metrics_without_rows() {
+        let metrics = ColumnsMetric::new(&SCHEMA);
+
+        assert_eq!(metrics.calculate(), vec![
+            MetricResult::Int64 { mean: None },
+            MetricResult::Boolean { entropy: None },
+            MetricResult::Varchar { ascii_count: 0 },
+            MetricResult::Varchar { ascii_count: 0 },
+        ]);
+    }
+
+    #[test]
+    fn metrics_reject_wrong_schema() {
+        let mut metrics = ColumnsMetric::new(&SCHEMA);
+        let wrong = Batch::new(vec![Column::Int64(vec![100])]).unwrap();
+
+        assert!(metrics.update(&wrong).is_err());
+        assert_eq!(metrics.calculate()[0], MetricResult::Int64 { mean: None });
+    }
+
+    #[test]
+    fn metrics_values() {
+        let mut metrics = ColumnsMetric::new(&SCHEMA);
+
+        let mut words = VarcharColumn::new();
+        words.push("ab");
+        words.push("ąę");
+        let mut empty = VarcharColumn::new();
+        empty.push("");
+        empty.push("");
+
+        let batch = Batch::new(vec![
+            Column::Int64(vec![-3, 4]),
+            Column::Boolean(vec![true, true]),
+            Column::Varchar(words),
+            Column::Varchar(empty),
+        ]).unwrap();
+        metrics.update(&batch).unwrap();
+
+        assert_eq!(metrics.calculate(), vec![
+            MetricResult::Int64 { mean: Some(0.5) },
+            MetricResult::Boolean { entropy: Some(0.0) },
+            MetricResult::Varchar { ascii_count: 2 },
+            MetricResult::Varchar { ascii_count: 0 },
+        ]);
+    }
 }

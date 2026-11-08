@@ -2,7 +2,6 @@
 **/.idea/
 **/.code
 **/target/
-*.bin
 .venv/
 projects/proj1/benchmarks/results/macos/
 
