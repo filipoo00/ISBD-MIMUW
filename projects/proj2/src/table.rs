@@ -1,6 +1,7 @@
 use std::io;
 
-use crate::constants::BATCH_SIZE;
+// max number of rows in a batch
+pub const BATCH_SIZE: usize = 1024;
 
 
 #[derive(Debug, PartialEq, Clone)]
@@ -60,8 +61,14 @@ impl VarcharColumn {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ColumnType {
+    Int64,
+    Varchar,
+    Boolean,
+}
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Column {
     Int64(Vec<i64>),
     Varchar(VarcharColumn),
@@ -70,6 +77,14 @@ pub enum Column {
 
 
 impl Column {
+    pub fn column_type(&self) -> ColumnType {
+        match self {
+            Column::Int64(_) => ColumnType::Int64,
+            Column::Varchar(_) => ColumnType::Varchar,
+            Column::Boolean(_) => ColumnType::Boolean,
+        }
+    }
+
     pub fn len(&self) -> usize {
         match self {
             Column::Int64(values) => values.len(),
@@ -101,6 +116,7 @@ impl Column {
 }
 
 
+#[derive(Debug, PartialEq)]
 pub struct Batch {
     columns: Vec<Column>,
     number_of_rows: usize,
@@ -127,6 +143,14 @@ impl Batch {
         }
 
         Ok(Self { columns, number_of_rows })
+    }
+
+    pub fn matches_schema(&self, column_types: &[ColumnType]) -> bool {
+        self.columns.len() == column_types.len()
+            && self.columns
+                .iter()
+                .zip(column_types)
+                .all(|(column, &column_type)| column.column_type() == column_type)
     }
 
     pub fn column(&self, column_index: usize) -> Option<&Column> {

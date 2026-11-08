@@ -1,6 +1,6 @@
 use std::io;
 
-use crate::table::{Batch, Column};
+use crate::table::{Batch, Column, ColumnType};
 
 
 enum Metric {
@@ -24,23 +24,24 @@ pub enum MetricResult {
 
 
 pub struct ColumnsMetric {
+    column_types: Vec<ColumnType>,
     columns_metric: Vec<Metric>,
 }
 
 
 impl ColumnsMetric {
-    pub fn new(batch: &Batch) -> Self {
+    pub fn new(column_types: &[ColumnType]) -> Self {
         let mut columns_metric = Vec::new();
 
-        for column in batch.columns() {
-            let column_metric = match column {
-                Column::Int64(_) => {
+        for column_type in column_types {
+            let column_metric = match column_type {
+                ColumnType::Int64 => {
                     Metric::Int64 { sum: 0, count: 0 }
                 },
-                Column::Varchar(_) => {
+                ColumnType::Varchar => {
                     Metric::Varchar { ascii_count: 0 }
                 },
-                Column::Boolean(_) => {
+                ColumnType::Boolean => {
                     Metric::Boolean { true_count: 0, false_count: 0 }
                 },
             };
@@ -48,11 +49,18 @@ impl ColumnsMetric {
             columns_metric.push(column_metric);
         }
 
-        Self { columns_metric }
+        Self { column_types: column_types.to_vec(), columns_metric }
     }
 
 
     pub fn update(&mut self, batch: &Batch) -> io::Result<()> {
+        if !batch.matches_schema(&self.column_types) {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "Batch schema does not match metrics schema.",
+            ));
+        }
+
         for (metric, column) in self.columns_metric.iter_mut().zip(batch.columns()) {
             match (metric, column) {
                 (Metric::Int64 { sum, count }, Column::Int64(values)) => {
@@ -78,7 +86,7 @@ impl ColumnsMetric {
                 (_, _) => {
                     return Err(io::Error::new(
                         io::ErrorKind::InvalidInput,
-                        "Batch schema does not match metrics schema",
+                        "Batch schema does not match metrics schema.",
                     ));
                 }
             }
@@ -93,8 +101,8 @@ impl ColumnsMetric {
 
         for column_metric in &self.columns_metric {
             let column_metric_result = match column_metric {
-                Metric::Int64{ sum, count } => {
-                    MetricResult::Int64 { 
+                Metric::Int64 { sum, count } => {
+                    MetricResult::Int64 {
                         mean: if *count > 0 {
                             Some(*sum as f64 / *count as f64)
                         } else {

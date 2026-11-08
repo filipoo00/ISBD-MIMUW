@@ -7,15 +7,19 @@ use std::io;
 use std::path::Path;
 use std::process;
 
-use proj2::constants::BATCH_SIZE;
+use proj2::table::BATCH_SIZE;
 use proj2::file_format::writer::Writer;
-use proj2::table::{Batch, Column, VarcharColumn};
+use proj2::table::{Batch, Column, ColumnType, VarcharColumn};
 
 const DEFAULT_NUMBER_OF_ROWS: usize = 10000;
-const NUMBER_OF_COLS: usize = 4;
 const FIRST_ID: i64 = -5000;
-
 const WORDS: [&str; 6] = ["a", "ab", "abc", "ą", "ąb", "ąbc"];
+const COLUMN_TYPES: [ColumnType; 4] = [
+    ColumnType::Int64,
+    ColumnType::Boolean,
+    ColumnType::Varchar,
+    ColumnType::Varchar,
+];
 
 
 fn make_batch(first_row: usize, number_of_rows: usize) -> io::Result<Batch> {
@@ -41,7 +45,7 @@ fn make_batch(first_row: usize, number_of_rows: usize) -> io::Result<Batch> {
 
 
 fn run(path: &Path, number_of_rows: usize) -> io::Result<()> {
-    let mut writer = Writer::create(path, NUMBER_OF_COLS)?;
+    let mut writer = Writer::create(path, COLUMN_TYPES.to_vec())?;
 
     let mut first_row = 0;
     while first_row < number_of_rows {

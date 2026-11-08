@@ -40,12 +40,11 @@ fn print_results(results: &[MetricResult]) {
 fn run(path: &Path) -> io::Result<()> {
     let mut reader = Reader::open(path)?;
 
-    let mut metrics: Option<ColumnsMetric> = None;
+    let mut metrics = ColumnsMetric::new(reader.schema());
     let mut number_of_batches = 0;
     let mut number_of_rows = 0;
 
     while let Some(batch) = reader.next_batch()? {
-        let metrics = metrics.get_or_insert_with(|| ColumnsMetric::new(&batch));
         metrics.update(&batch)?;
 
         number_of_batches += 1;
@@ -53,11 +52,7 @@ fn run(path: &Path) -> io::Result<()> {
     }
 
     println!("Read {number_of_rows} rows in {number_of_batches} batches.");
-
-    match metrics {
-        Some(metrics) => print_results(&metrics.calculate()),
-        None => println!("File has no batches."),
-    }
+    print_results(&metrics.calculate());
 
     Ok(())
 }
