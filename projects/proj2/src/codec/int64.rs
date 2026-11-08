@@ -1,5 +1,9 @@
 use std::io;
 
+const VLE_DATA_BITS: u32 = 7;
+const VLE_DATA_MASK: u8 = 0b0111_1111;
+const VLE_CONTINUATION_BIT: u8 = 0b1000_0000;
+
 fn delta_encode(values: &[i64]) -> Vec<i64> {
     if values.is_empty() {
         return Vec::new()
@@ -32,7 +36,7 @@ fn delta_decode(deltas: &[i64]) -> Vec<i64> {
 }
 
 fn zigzag_encode_value(value: i64) -> u64 {
-    let mapped_value = ((value as u64) << 1) ^ ((value >> 63) as u64);
+    let mapped_value = ((value as u64) << 1) ^ ((value >> (i64::BITS - 1)) as u64);
     mapped_value
 }
 
@@ -70,11 +74,11 @@ fn vle_encode_value(mut value: u64) -> Vec<u8> {
     let mut bytes = Vec::new();
     
     loop {
-        let mut byte = (value & 0b0111_1111) as u8;
-        value >>= 7;
+        let mut byte = (value as u8) & VLE_DATA_MASK;
+        value >>= VLE_DATA_BITS;
 
         if value != 0 {
-            byte |= 0b1000_0000;
+            byte |= VLE_CONTINUATION_BIT;
         }
 
         bytes.push(byte);
@@ -111,8 +115,8 @@ fn vle_decode(encoded: &[u8]) -> io::Result<Vec<u64>> {
             ))
         }
 
-        let restored_bits = (byte & 0b0111_1111) as u64;
-        let continuation_bit = byte & 0b1000_0000;
+        let restored_bits = (byte & VLE_DATA_MASK) as u64;
+        let continuation_bit = byte & VLE_CONTINUATION_BIT;
 
         value |= restored_bits << shift;
 
@@ -121,7 +125,7 @@ fn vle_decode(encoded: &[u8]) -> io::Result<Vec<u64>> {
             value = 0;
             shift = 0;
         } else {
-            shift += 7;
+            shift += VLE_DATA_BITS;
         }
     }
 

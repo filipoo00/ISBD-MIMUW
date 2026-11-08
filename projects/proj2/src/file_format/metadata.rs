@@ -30,8 +30,26 @@ use std::io::{self, Read, Write};
 
 use crate::table::ColumnType;
 
-pub const FOOTER_METADATA_SIZE: usize = 4;
+pub const FOOTER_METADATA_SIZE: usize = size_of::<u32>();
 
+
+fn read_u16(reader: &mut impl Read) -> io::Result<u16> {
+    let mut buffer = [0u8; size_of::<u16>()];
+    reader.read_exact(&mut buffer)?;
+    Ok(u16::from_le_bytes(buffer))
+}
+
+fn read_u32(reader: &mut impl Read) -> io::Result<u32> {
+    let mut buffer = [0u8; size_of::<u32>()];
+    reader.read_exact(&mut buffer)?;
+    Ok(u32::from_le_bytes(buffer))
+}
+
+fn read_u64(reader: &mut impl Read) -> io::Result<u64> {
+    let mut buffer = [0u8; size_of::<u64>()];
+    reader.read_exact(&mut buffer)?;
+    Ok(u64::from_le_bytes(buffer))
+}
 
 fn column_type_to_u8(column_type: ColumnType) -> u8 {
     match column_type {
@@ -61,10 +79,7 @@ impl FileMetadataSize {
     }
 
     pub fn read_from(reader: &mut impl Read) -> io::Result<Self> {
-        let mut footer_buffer = [0u8; 4];
-        reader.read_exact(&mut footer_buffer)?;
-        let footer_size = u32::from_le_bytes(footer_buffer);
-        Ok( Self { footer_size })
+        Ok(Self { footer_size: read_u32(reader)? })
     }
 }
 
@@ -85,12 +100,9 @@ impl FileMetadata {
     }
 
     pub fn read_from(reader: &mut impl Read) -> io::Result<Self> {
-        let mut batches_buffer = [0u8; 4];
-        let mut cols_buffer = [0u8; 4];
-        reader.read_exact(&mut batches_buffer)?;
-        reader.read_exact(&mut cols_buffer)?;
-        let number_of_batches = u32::from_le_bytes(batches_buffer);
-        let number_of_cols = u32::from_le_bytes(cols_buffer);
+        let number_of_batches = read_u32(reader)?;
+        let number_of_cols = read_u32(reader)?;
+
         let mut column_types = Vec::new();
         let mut column_buffer = [0u8; 1];
         for _ in 0..number_of_cols {
@@ -101,7 +113,7 @@ impl FileMetadata {
     }
 
     pub fn size(&self) -> u32 {
-        4 + 4 + self.column_types.len() as u32
+        (2 * size_of::<u32>() + self.column_types.len()) as u32
     }
 }
 
@@ -117,10 +129,7 @@ impl BatchMetadata {
     }
 
     pub fn read_from(reader: &mut impl Read) -> io::Result<Self> {
-        let mut rows_buffer = [0u8; 2];
-        reader.read_exact(&mut rows_buffer)?;
-        let number_of_rows = u16::from_le_bytes(rows_buffer);
-        Ok( Self { number_of_rows })
+        Ok(Self { number_of_rows: read_u16(reader)? })
     }
 }
 
@@ -136,10 +145,6 @@ impl ColumnMetadata {
     }
 
     pub fn read_from(reader: &mut impl Read) -> io::Result<Self> {
-        let mut payload_buffer = [0u8; 8];
-        reader.read_exact(&mut payload_buffer)?;
-
-        let payload_size = u64::from_le_bytes(payload_buffer);
-        Ok( Self { payload_size })
+        Ok(Self { payload_size: read_u64(reader)? })
     }
 }

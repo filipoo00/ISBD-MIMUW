@@ -4,7 +4,7 @@ use std::io;
 use crate::table::VarcharColumn;
 use crate::codec::int64::{encode_int64_column, decode_int64_column};
 
-const OFFSETS_SIZE_LEN: usize = 4;
+const OFFSETS_SIZE_LEN: usize = size_of::<u32>();
 
 fn compress_data(data: &[u8]) -> Vec<u8> {
     compress(data)
