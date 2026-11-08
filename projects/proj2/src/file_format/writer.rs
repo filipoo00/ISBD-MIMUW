@@ -1,6 +1,6 @@
 use std::path::Path;
 use std::fs::File;
-use std::io::{self, Write};
+use std::io::{self, BufWriter, Write};
 
 use crate::file_format::metadata::{BatchMetadata, ColumnMetadata, FileMetadata, FileMetadataSize};
 use crate::table::{Batch, Column, ColumnType};
@@ -10,7 +10,7 @@ use crate::codec::boolean::encode_boolean_column;
 
 
 pub struct Writer {
-    file: File,
+    file: BufWriter<File>,
     number_of_batches: u32,
     column_types: Vec<ColumnType>,
 }
@@ -41,7 +41,7 @@ impl Writer {
 
 
     pub fn create(path: &Path, column_types: Vec<ColumnType>) -> io::Result<Self> {
-        let file: File = File::create(path)?;
+        let file = BufWriter::new(File::create(path)?);
 
         Ok(Self {
             file,

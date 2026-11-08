@@ -26,7 +26,6 @@
 // before reading any batch.
 
 
-use std::fs::File;
 use std::io::{self, Read, Write};
 
 use crate::table::ColumnType;
@@ -56,14 +55,14 @@ pub struct FileMetadataSize {
 }
 
 impl FileMetadataSize {
-    pub fn write_to(&self, file: &mut File) -> io::Result<()> {
-        file.write_all(&self.footer_size.to_le_bytes())?;
+    pub fn write_to(&self, writer: &mut impl Write) -> io::Result<()> {
+        writer.write_all(&self.footer_size.to_le_bytes())?;
         Ok(())
     }
 
-    pub fn read_from(file: &mut File) -> io::Result<Self> {
+    pub fn read_from(reader: &mut impl Read) -> io::Result<Self> {
         let mut footer_buffer = [0u8; 4];
-        file.read_exact(&mut footer_buffer)?;
+        reader.read_exact(&mut footer_buffer)?;
         let footer_size = u32::from_le_bytes(footer_buffer);
         Ok( Self { footer_size })
     }
@@ -76,26 +75,26 @@ pub struct FileMetadata {
 }
 
 impl FileMetadata {
-    pub fn write_to(&self, file: &mut File) -> io::Result<()> {
-        file.write_all(&self.number_of_batches.to_le_bytes())?;
-        file.write_all(&(self.column_types.len() as u32).to_le_bytes())?;
+    pub fn write_to(&self, writer: &mut impl Write) -> io::Result<()> {
+        writer.write_all(&self.number_of_batches.to_le_bytes())?;
+        writer.write_all(&(self.column_types.len() as u32).to_le_bytes())?;
         for &column_type in &self.column_types {
-            file.write_all(&[column_type_to_u8(column_type)])?;
+            writer.write_all(&[column_type_to_u8(column_type)])?;
         }
         Ok(())
     }
 
-    pub fn read_from(file: &mut File) -> io::Result<Self> {
+    pub fn read_from(reader: &mut impl Read) -> io::Result<Self> {
         let mut batches_buffer = [0u8; 4];
         let mut cols_buffer = [0u8; 4];
-        file.read_exact(&mut batches_buffer)?;
-        file.read_exact(&mut cols_buffer)?;
+        reader.read_exact(&mut batches_buffer)?;
+        reader.read_exact(&mut cols_buffer)?;
         let number_of_batches = u32::from_le_bytes(batches_buffer);
         let number_of_cols = u32::from_le_bytes(cols_buffer);
         let mut column_types = Vec::new();
         let mut column_buffer = [0u8; 1];
         for _ in 0..number_of_cols {
-            file.read_exact(&mut column_buffer)?;
+            reader.read_exact(&mut column_buffer)?;
             column_types.push(column_type_from_u8(column_buffer[0])?);
         }
         Ok( Self { number_of_batches, column_types })
@@ -112,14 +111,14 @@ pub struct BatchMetadata {
 }
 
 impl BatchMetadata {
-    pub fn write_to(&self, file: &mut File) -> io::Result<()> {
-        file.write_all(&self.number_of_rows.to_le_bytes())?;
+    pub fn write_to(&self, writer: &mut impl Write) -> io::Result<()> {
+        writer.write_all(&self.number_of_rows.to_le_bytes())?;
         Ok(())
     }
 
-    pub fn read_from(file: &mut File) -> io::Result<Self> {
+    pub fn read_from(reader: &mut impl Read) -> io::Result<Self> {
         let mut rows_buffer = [0u8; 2];
-        file.read_exact(&mut rows_buffer)?;
+        reader.read_exact(&mut rows_buffer)?;
         let number_of_rows = u16::from_le_bytes(rows_buffer);
         Ok( Self { number_of_rows })
     }
@@ -131,14 +130,14 @@ pub struct ColumnMetadata {
 }
 
 impl ColumnMetadata {
-    pub fn write_to(&self, file: &mut File) -> io::Result<()> {
-        file.write_all(&self.payload_size.to_le_bytes())?;
+    pub fn write_to(&self, writer: &mut impl Write) -> io::Result<()> {
+        writer.write_all(&self.payload_size.to_le_bytes())?;
         Ok(())
     }
 
-    pub fn read_from(file: &mut File) -> io::Result<Self> {
+    pub fn read_from(reader: &mut impl Read) -> io::Result<Self> {
         let mut payload_buffer = [0u8; 8];
-        file.read_exact(&mut payload_buffer)?;
+        reader.read_exact(&mut payload_buffer)?;
 
         let payload_size = u64::from_le_bytes(payload_buffer);
         Ok( Self { payload_size })

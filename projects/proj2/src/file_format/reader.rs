@@ -1,4 +1,4 @@
-use std::io::{self, Read, Seek, SeekFrom};
+use std::io::{self, BufReader, Read, Seek, SeekFrom};
 use std::path::Path;
 use std::fs::File;
 
@@ -12,7 +12,7 @@ use crate::codec::varchar::decode_varchar_column;
 use crate::codec::boolean::decode_boolean_column;
 
 pub struct Reader {
-    file: File,
+    file: BufReader<File>,
     file_metadata: FileMetadata,
     data_end: u64,
     current_batch: usize,
@@ -58,8 +58,9 @@ impl Reader {
 
 
     pub fn open(path: &Path) -> io::Result<Self> {
-        let mut file = File::open(path)?;
+        let file = File::open(path)?;
         let file_size = file.metadata()?.len();
+        let mut file = BufReader::new(file);
 
         if file_size < FOOTER_METADATA_SIZE as u64 {
             return Err(io::Error::new(
