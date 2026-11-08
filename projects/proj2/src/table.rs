@@ -2,6 +2,7 @@ use std::io;
 
 use crate::constants::BATCH_SIZE;
 
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct VarcharColumn {
     data: String,
@@ -53,8 +54,11 @@ impl VarcharColumn {
     pub fn data(&self) -> &str {
         return &self.data
     }
-}
 
+    pub fn get(&self, row: usize) -> &str {
+        &self.data[self.offsets[row] as usize..self.offsets[row + 1] as usize]
+    }
+}
 
 
 #[derive(Debug)]
@@ -73,8 +77,28 @@ impl Column {
             Column::Boolean(values) => values.len(),
         }
     }
-}
 
+    pub fn as_int64(&self) -> Option<&[i64]> {
+        match self {
+            Column::Int64(values) => Some(values),
+            _ => None,
+        }
+    }
+
+    pub fn as_varchar(&self) -> Option<&VarcharColumn> {
+        match self {
+            Column::Varchar(column) => Some(column),
+            _ => None,
+        }
+    }
+
+    pub fn as_boolean(&self) -> Option<&[bool]> {
+        match self {
+            Column::Boolean(values) => Some(values),
+            _ => None,
+        }
+    }
+}
 
 
 pub struct Batch {
@@ -103,6 +127,21 @@ impl Batch {
         }
 
         Ok(Self { columns, number_of_rows })
+    }
+
+    pub fn column(&self, column_index: usize) -> Option<&Column> {
+        self.columns.get(column_index)
+    }
+
+    pub fn add_column(&mut self, column: Column) -> io::Result<()> {
+        if column.len() != self.number_of_rows {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "New column must have the same number of rows as in the batch.",
+            ));
+        }
+        self.columns.push(column);
+        Ok(())
     }
 
     pub fn number_of_rows(&self) -> usize {
